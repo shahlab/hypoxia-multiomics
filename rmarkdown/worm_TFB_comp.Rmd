@@ -1,0 +1,103 @@
+---
+title: "Worm TF data"
+output: html_notebook
+---
+
+## Packages
+```{r}
+library(tidyverse)
+library(readxl)
+library(Biostrings)
+library(rtracklayer)
+```
+
+
+## Read in TF hits 
+```{r}
+wtf.hits <- read_xlsx("TF binding sites within HIF1 direct targets.xlsx") %>% 
+  mutate(pStart = as.integer(pStart), pEnd = as.integer(pEnd))
+wtf.genes <- unique(c(unlist(wtf.hits[, 4:11])))
+wtf.genes <- wtf.genes[!is.na(wtf.genes)]
+```
+
+## Read in worm genome and its annotation
+```{r}
+worm.genome <- readDNAStringSet("/data/riboseq/Supp/seqs/worm/Caenorhabditis_elegans.WBcel235.dna.toplevel.fa.gz")
+worm.annot <- readGFFAsGRanges("/data/riboseq/Supp/seqs/worm/Caenorhabditis_elegans.WBcel235.97.gff3.gz")
+
+names(worm.genome) <- sapply(strsplit(names(worm.genome), " "), `[[`, 1)
+worm.genes <- worm.annot[worm.annot$type=="gene",]
+# worm.genes$gene_id <- sapply(strsplit(worm.genes$ID, "\\."), `[[`, 1)
+```
+
+## CHIP peak sequences
+```{r}
+wtf.peak.gr <- GRanges(seqnames = substr(wtf.hits$chrom, 4, nchar(wtf.hits$chrom)),
+                       ranges = IRanges(start = wtf.hits$pStart, end = wtf.hits$pEnd), 
+                       strand = "*") # Create a GRanges object for ChIP-peaks
+
+wtf.peak.seq <- worm.genome[wtf.peak.gr] # Get the sequences corresponding to ChIP-peaks
+names(wtf.peak.seq) <- paste(seqnames(wtf.peak.gr),as.character(ranges(wtf.peak.gr)), sep = "-") # Fix names
+```
+
+## Find HIF1 binding sites in CHIP peaks
+```{r}
+worm.bs <- DNAString("ACGTGAHWWTTRYSA")
+human.bs <- DNAString("ACGTGA")
+
+wtf.worm.fwd <- vmatchPattern(worm.bs, wtf.peak.seq, fixed = F)
+wtf.worm.rev <- vmatchPattern(worm.bs, reverseComplement(wtf.peak.seq), fixed = F)
+wtf.human.fwd <- vmatchPattern(human.bs, wtf.peak.seq, fixed = F)
+wtf.human.rev <- vmatchPattern(human.bs, reverseComplement(wtf.peak.seq), fixed = F)
+
+wtf.worm.fwd.loc <- unlist(wtf.worm.fwd) %>% as.data.frame() %>% as_tibble()
+wtf.worm.rev.loc <- unlist(wtf.worm.rev)  %>% as.data.frame() %>% as_tibble() 
+wtf.human.fwd.loc <- unlist(wtf.human.fwd)  %>% as.data.frame() %>% as_tibble()
+wtf.human.rev.loc <- unlist(wtf.human.rev)  %>% as.data.frame() %>% as_tibble()
+
+write.csv(wtf.worm.fwd.loc, file = "hif1.chippeaks.fwd.ACGTGAHWWTTRYSA.csv")
+write.csv(wtf.worm.rev.loc, file = "hif1.chippeaks.rev.ACGTGAHWWTTRYSA.csv")
+write.csv(wtf.human.fwd.loc, file = "hif1.chippeaks.fwd.ACGTGA.csv")
+write.csv(wtf.human.rev.loc, file = "hif1.chippeaks.rev.AACGTGA.csv")
+```
+
+## Get promoter sequences of select genes with CHIP peaks
+```{r}
+wtf.annot <- worm.genes[worm.genes$Name %in% wtf.genes]
+wtf.promoters <- promoters(wtf.annot, upstream=4000, downstream=0, use.names=TRUE)
+
+wtf.seq <- worm.genome[wtf.promoters]
+names(wtf.seq) <- wtf.promoters$Name
+wtf.seq[strand(wtf.promoters) == "-"] <- reverseComplement(wtf.seq[strand(wtf.promoters) == "-"])
+```
+
+## Identify HIF1 binding sites
+```{r}
+worm.bs <- DNAString("ACGTGAHWWTTRYSA")
+human.bs <- DNAString("ACGTGA")
+
+wtf.genes.worm.hif1 <- unlist(vmatchPattern(worm.bs, wtf.seq, fixed = F)) %>%
+  as.data.frame() %>%
+  as_tibble() 
+wtf.genes.human.hif1 <- unlist(vmatchPattern(human.bs, wtf.seq, fixed = F)) %>%
+  as.data.frame() %>%
+  as_tibble()
+
+write.csv(wtf.genes.worm.hif1, file = "hif1.loc4000.genes.ACGTGAHWWTTRYSA.csv")
+write.csv(wtf.genes.human.hif1, file = "hif1.loc4000.genes.ACGTGA.csv")
+```
+
+## Data wrangling
+```{r}
+data <- wtf.hits %>% 
+  select(-c(1:3, 12)) %>%
+  gather(Column, gene, 1:8) %>% 
+  select(-Column) %>%
+  filter(!is.na(gene)) %>%
+  gather(TF, hits, 1:112) %>%
+  group_by(gene, TF) %>%
+  summarise(Hits = sum(hits))
+
+write.csv(data, file = "genes.tf.hits.csv")
+```
+

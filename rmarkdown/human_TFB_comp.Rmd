@@ -1,0 +1,116 @@
+---
+title: "Human TF data"
+output: html_notebook
+---
+
+## Packages
+```{r}
+library(tidyverse)
+library(readxl)
+library(Biostrings)
+library(rtracklayer)
+library(ggpubr)
+```
+
+## Read in TF hits 
+```{r}
+tf.hits <- read_xlsx("83 direct targets that have human homologs.xlsx")
+tf.hits <- tf.hits %>% filter(`Human Ortholog` != "N.A.") # Remove genes with no human orthologs
+tf.hits$human <- sapply(strsplit(tf.hits$`Human Ortholog`, " "), `[[`, 1)
+```
+
+## Read in human genome and its annotation
+```{r}
+human.genome <- readDNAStringSet("/data/riboseq/Supp/seqs/human/v28/GRCh38.p12.genome.fa.gz")
+human.annot <- readGFFAsGRanges("/data/riboseq/Supp/seqs/human/v28/gencode.v28.annotation.gff3.gz")
+
+names(human.genome) <- sapply(strsplit(names(human.genome), " "), `[[`, 1) # Fix chromosome names to match annotations
+human.genes <- human.annot[human.annot$type=="gene",] # Filter for only annotations of genes
+human.genes$gene_id <- sapply(strsplit(human.genes$ID, "\\."), `[[`, 1) # Fix gene_id to match HIF-1 targets
+```
+
+## Get promoter sequences
+```{r}
+tf.annot <- human.genes[human.genes$gene_id %in% tf.hits$human] # 78/83 of those gene ids are present in the current annotation
+tf.promoters <- promoters(tf.annot, upstream=4000, downstream=0, use.names=TRUE) # Get 4000 bp upstream of the TSS
+
+tf.seq <- human.genome[tf.promoters] # Get nucleotide sequences upstream of the promoter region
+names(tf.seq) <- tf.promoters$gene_id  # Fix gene names
+tf.seq[strand(tf.promoters) == "-"] <- reverseComplement(tf.seq[strand(tf.promoters) == "-"]) # For sequences on the negative strand, take the reverse complement of the sequences
+```
+
+## Identify HIF1 binding sites
+```{r}
+worm.bs <- DNAString("ACGTGAHWWTTRYSA")
+human.bs <- DNAString("RCGTG")
+
+human.hif1 <- vmatchPattern(human.bs, tf.seq, fixed = F)
+
+final.bs.loc <- unlist(human.hif1) %>% 
+  as.data.frame() %>%
+  as_tibble() %>% 
+  mutate(Pos = start) %>% 
+  select(-c(end,width,start))
+# write.csv(final.bs.loc, file = "hif1.loc4000.humans.csv")
+```
+
+```{r}
+prot_cod <- human.genes[human.genes$gene_type == "protein_coding"]
+other.tf.annot <- prot_cod[!prot_cod$gene_id %in% tf.hits$human] 
+other.tf.promoters <- promoters(other.tf.annot, upstream=4000, downstream=0, use.names=TRUE) # Get 4000 bp upstream of the TSS
+
+# Make sure promoter regions are within chromosome bounds
+other.tf.promoters$maxchrom <- seqlengths(human.genome)[as.character(seqnames(other.tf.promoters))]
+other.tf.promoters <- other.tf.promoters[start(other.tf.promoters)>=1 & end(other.tf.promoters)<= other.tf.promoters$maxchrom]
+
+
+other.tf.seq <- human.genome[other.tf.promoters] # Get nucleotide sequences upstream of the promoter region
+names(other.tf.seq) <- other.tf.promoters$gene_id  # Fix gene names
+other.tf.seq[strand(other.tf.promoters) == "-"] <- reverseComplement(other.tf.seq[strand(other.tf.promoters) == "-"]) # For sequences on the negative strand, take the reverse complement of the sequences
+
+other.tf.seq <- other.tf.seq[alphabetFrequency(other.tf.seq)[,"N"]==0] # No N is promoter region
+
+other.human.hif1 <- vmatchPattern(human.bs, other.tf.seq, fixed = F)
+
+final.bs.loc.other <- unlist(other.human.hif1) %>% 
+  as.data.frame() %>%
+  as_tibble() %>% 
+  mutate(Pos = start) %>% 
+  select(-c(end,width,start))
+
+# write.csv(final.bs.loc.other, file = "hif1.loc4000.humans.other.genes.csv")
+
+```
+
+```{r}
+a <- final.bs.loc.other %>% group_by(names) %>% tally() %>% mutate(Genes = "Others")
+b <- final.bs.loc %>% group_by(names) %>% tally() %>% mutate(Genes = "Orthologs")
+
+hre.plot <- ggplot(bind_rows(a,b), aes(fill = Genes)) +
+  geom_bar(mapping = aes(x = n, y = ..prop..,), stat = "count", position = "dodge") +
+  scale_fill_brewer(palette = "Set1") +
+  labs(x = "Number of HREs", y = "Proportion of genes") +
+  theme_pubr()
+hre.plot
+ggsave(hre.plot, filename = "hre.plot.pdf")
+```
+## Looking into smaller windows
+```{r}
+alt.human.hif1 <- sapply(vmatchPattern(human.bs, subseq(tf.seq, end = 4000, width = 100), fixed = F), length)
+alt.other.human.hif1 <- sapply(vmatchPattern(human.bs, subseq(other.tf.seq, end = 4000, width = 100), fixed = F), length)
+
+alt.tab <- tibble(Names = c(names(alt.human.hif1), names(alt.other.human.hif1)),
+                  n = c(alt.human.hif1, alt.other.human.hif1),
+                  Genes = c(rep("Orthologs", length(alt.human.hif1)),
+                            rep("Others", length(alt.other.human.hif1))))
+
+alt.hre.plot <- ggplot(alt.tab, aes(fill = Genes)) +
+  geom_bar(mapping = aes(x = n, y = ..prop..,), stat = "count", position = "dodge") +
+  scale_fill_brewer(palette = "Set1") +
+  labs(x = "Number of HREs", y = "Proportion of genes") +
+  theme_pubr()
+alt.hre.plot
+
+ks.test(alt.tab$n[alt.tab$Genes=="Orthologs"], alt.tab$n[alt.tab$Genes=="Others"])
+```
+
