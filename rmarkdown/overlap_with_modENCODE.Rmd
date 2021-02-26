@@ -192,6 +192,8 @@ TF.enrich.perHIF <- TF.enrich.perHIF %>%
 TF.enrich.perHIF <- left_join(TF.enrich.perHIF, boot) %>%
   mutate(TF = factor(TF, levels = TF),
          'Significantly enriched' = ifelse(enrich < low | enrich > high, "TRUE", "FALSE"))
+
+write.csv(TF.enrich.perHIF, "../output/tables/HIF-1_ModEncode_overlap.enrich.csv")
 ```
 
 ```{r fig.width=15,fig.height = 5}
@@ -203,6 +205,6 @@ plot.TF.enrich.perHIF.bti <- ggplot(TF.enrich.perHIF, aes(x = TF, y = enrich, fi
   scale_y_continuous(trans = "log2") +
   theme_pubr(x.text.angle = 90)
 plot.TF.enrich.perHIF.bti
-ggsave(plot.TF.enrich.perHIF, filename = "../output/plots/plot.TF.enrich.with.bti.perHIF.BETA.pdf")
+ggsave(plot.TF.enrich.perHIF.bti, filename = "../output/plots/plot.TF.enrich.with.bti.perHIF.BETA.pdf")
 ```
 
