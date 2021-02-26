@@ -1,0 +1,54 @@
+---
+title: "Overlaps between ChIP-seq peaks"
+output: html_notebook
+---
+
+### Packages
+```{r}
+library(readxl)
+library(tidyverse)
+library(GenomicRanges)
+library(ggpubr)
+```
+
+```{r}
+## Read in TF binding sites
+TF <- read_xlsx("../data/Peak coordinates for 3 conditions.xlsx", sheet = "OR3350 Peaks")
+
+colnames(TF) <- c("chr","start","end")
+TF <- TF %>% 
+  distinct() %>% # Remove duplicate peaks
+  arrange(chr, start, end)
+TF$chr[TF$chr=="MtDNA"] <- "chrMtDNA"
+
+# Convert the TF peaks into a GRanges object
+TF.gr.ini <- GRanges(seqnames = TF$chr, ranges = IRanges(start = TF$start, end = TF$end), strand = "+")
+
+# Combine overlapping peaks into a single grouped peak
+TF.gr <- GenomicRanges::reduce(TF.gr.ini, with.revmap = T)
+
+# Count number of overlaps within each combined peak
+TF.data <- TF.gr %>% 
+  as_tibble() %>%
+  mutate(comb = sapply(revmap, length)) 
+
+# Non-overlapping peaks
+TF.data.nonoverlap <- TF.data %>%
+  filter(comb == 1) %>%
+  select(-c(revmap, comb))
+
+# Overlapping peaks
+TF.data.overlap <- TF.data %>%
+  filter(comb > 1) %>% # Filter for overlapping peaks
+  mutate(group = 1:nrow(.)) %>% # Assign each set of overlapped peaks into a group 
+  unnest(revmap) %>%
+  rename(group.start = start,
+         group.end = end,
+         group.width = width) %>%
+  bind_cols(., TF.gr.ini[.$revmap] %>% as_tibble() %>% select(-c(seqnames,strand)), .name_repair = "universal") %>% # Identify which peaks overlapped
+  mutate(dist.start = abs(group.start - start), # Distance between the start of peak and start of it's group peak
+         dist.end = abs(group.end - end), # Distance between the end of peak and end of it's group peak
+         ratio.peak.length = width/group.width) # Ratio of peak width to group peak width
+  
+```
+

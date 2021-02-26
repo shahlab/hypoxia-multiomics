@@ -8,43 +8,35 @@ output: html_notebook
 library(readxl)
 library(tidyverse)
 library(GenomicRanges)
+library(ggpubr)
 ```
 
 ```{r}
 ## Read in HIF1 binding sites
-## There are 3 datasets
-hif1.d1 <- read_xlsx("Peak coordinates for 3 conditions.xlsx", sheet = 1)
-hif1.d2 <- read_xlsx("Peak coordinates for 3 conditions.xlsx", sheet = 2)
-hif1.d3 <- read_xlsx("Peak coordinates for 3 conditions.xlsx", sheet = 3)
+hif1 <- read_xlsx("../data/Peak coordinates for 3 conditions.xlsx", sheet = "OR3350 Peaks")
 
-colnames(hif1.d1) <- c("chr","start","end")
-colnames(hif1.d2) <- c("chr","start","end")
-colnames(hif1.d3) <- c("chr","start","end")
-
-# Combined hif1 datasets
-hif1 <- rbind(hif1.d1, hif1.d2, hif1.d3)
-hif1$chr[hif1$chr=="mtDNA"] <- "chrMtDNA"
+colnames(hif1) <- c("chr","start","end")
+hif1 <- hif1 %>% 
+  distinct() %>% # Remove duplicate peaks
+  arrange(chr, start, end)
 hif1$chr[hif1$chr=="MtDNA"] <- "chrMtDNA"
 
 # Convert the hif-1 peaks into a GRanges object
 hif1.gr.ini <- GRanges(seqnames = hif1$chr, ranges = IRanges(start = hif1$start, end = hif1$end), strand = "+")
-hif1.gr <- reduce(hif1.gr.ini, with.revmap = T)
-# hif1.gr <- unique(hif1.gr.ini)
+
+# Combine overlapping peaks (all overlaps are >75%)
+hif1.gr <- GenomicRanges::reduce(hif1.gr.ini, with.revmap = T)
 ```
 
 
 ```{r}
 ## Read in modENCODE all TF binding sitess
-modTF <- read_xlsx("TF binding coordinates for ALL worm TF by ModEncode at L4 Stage- Kudron et all 2018 .xlsx")
-
-modHIF1 <- modTF %>% filter(`#TF` == "HIF-1") # HIF-1 peaks in modENCODE data
+modTF <- read_xlsx("../data/TF binding coordinates for ALL worm TF by ModEncode at L4 Stage- Kudron et all 2018 .xlsx")
 modTF <- modTF %>% filter(`#TF` != "HIF-1") # Peaks of other TF in modENCODE data
 
 # Convert the modENCODE peaks into a GRanges object
 modTF.gr <- GRanges(seqnames = modTF$`#Chromosome`, ranges = IRanges(start = modTF$`#peak_Start`, end = modTF$`#Peak_end`), strand = "+")
 mcols(modTF.gr) <- list(TF = modTF$`#TF`)
-modHIF1.gr <- GRanges(seqnames = modHIF1$`#Chromosome`, ranges = IRanges(start = modHIF1$`#peak_Start`, end = modHIF1$`#Peak_end`), strand = "+")
-modHIF1.gr <- unique(modHIF1.gr)
 ```
 
 ### Function for processing overlaps
@@ -92,21 +84,6 @@ over1k <- findOverlaps(hif1.mid.gr, modTF.1k.gr) %>%
   as_tibble() %>%
   overlap_processor(prefix = "1k-", hif = hif1.gr)
 
-
-#-------------------------------------------------------------- 
-## modENCODE HIF-1 hits with other TFs in modENCODE data
-modHIF1.mid.gr <- modHIF1.gr
-start(modHIF1.mid.gr) <- floor(start(modHIF1.gr) + (end(modHIF1.gr)-start(modHIF1.gr))/2)
-end(modHIF1.mid.gr) <- floor(start(modHIF1.gr) + (end(modHIF1.gr)-start(modHIF1.gr))/2)
-
-## Find overlaps
-Mover400 <- findOverlaps(modHIF1.mid.gr, modTF.400.gr) %>%
-  as_tibble() %>%
-  overlap_processor(prefix = "400-", hif = modHIF1.gr)
-Mover1k <- findOverlaps(modHIF1.mid.gr, modTF.1k.gr) %>%
-  as_tibble() %>%
-  overlap_processor(prefix = "1k-", hif = modHIF1.gr)
-
 ```
 
 ```{r}
@@ -116,59 +93,46 @@ outExp <- left_join(over400, over1k, by = c("chr", "start", "end"),
                     suffix = c(".400", ".1k")) %>%
   select(chr, start, end, Total.400, Total.1k, everything())
 
-outMod <- left_join(Mover400, Mover1k, by = c("chr", "start", "end"), 
-                    suffix = c(".400", ".1k")) %>%
-  select(chr, start, end, Total.400, Total.1k, everything())
-
-write.csv(outExp, "HIF-1_ModEncode_overlap.csv")
-write.csv(outMod, "ModEncode-HIF-1_ModEncode_overlap.csv")
+write.csv(outExp, "../output/tables/HIF-1_ModEncode_overlap.csv")
 ```
 
 
 ```{r fig.width=15,fig.height = 5}
-outExp <- read_csv("HIF-1_ModEncode_overlap.csv")
+beta.peaks <- read_xlsx("../data/Peak coordinates for 3 conditions.xlsx", sheet = "BETA Peaks")
 
-TF.counts.perHIF <- outExp %>% 
-  select(starts_with("400")) %>%
-  pivot_longer(cols = starts_with("400"), names_to = "TF", values_to = "CountPerHIF") %>% 
-  filter(!is.na(CountPerHIF)) %>% 
-  group_by(TF) %>%
-  tally() %>%
-  arrange(n) %>%
-  mutate(TF = substr(TF, 5, nchar(TF)),
-         TF = factor(TF, levels = TF)) 
+beta.gr <- GRanges(seqnames = beta.peaks$chrom, ranges = IRanges(start = beta.peaks$pStart, end = beta.peaks$pEnd), strand = "+")
+tmp.gr <- GRanges(seqnames = outExp$chr, ranges = IRanges(start = outExp$start, end = outExp$end), strand = "+")
 
+# Find which peaks in the HIF-1 binding data are BETA peaks
+overlaps.with.mod.data <- findOverlaps(beta.gr, tmp.gr)
 
-plot.TF.counts.perHIF <- ggplot(TF.counts.perHIF, aes(x = TF, y = n)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Transcription Factor", y = "Number of times TF bound at a HIF-1 ChIP-seq peak") +
- # theme()
-  theme_pubr(x.text.angle = 90)
-plot.TF.counts.perHIF
-ggsave(plot.TF.counts.perHIF, filename = "plot.TF.counts.perHIF.pdf")
+# Get other TF binding data for BETA peaks
+beta.data <- outExp[subjectHits(overlaps.with.mod.data), ]
 
-TF.sum.perHIF <- outExp %>% 
-  select(starts_with("400")) %>%
-  pivot_longer(cols = starts_with("400"), names_to = "TF", values_to = "CountPerHIF") %>% 
-  filter(!is.na(CountPerHIF)) %>% 
+# Distribution of number of times a TF is associated with a HIF-1 peak
+TF.sum.perHIF <- beta.data %>%
+  select(starts_with("400")) %>% # Consider TF binding within 400bp of BETA peaks
+  pivot_longer(cols = starts_with("400"), names_to = "TF", values_to = "CountPerHIF") %>%
+  filter(!is.na(CountPerHIF)) %>%
   group_by(TF) %>%
   summarise(total = sum(CountPerHIF)) %>%
   arrange(total) %>%
   mutate(TF = substr(TF, 5, nchar(TF)),
-         TF = factor(TF, levels = TF)) 
+         TF = factor(TF, levels = TF))
 
 
 plot.TF.sum.perHIF <- ggplot(TF.sum.perHIF, aes(x = TF, y = total)) +
   geom_bar(stat = "identity") +
   labs(x = "Transcription Factor", y = "Total instances of TF bound at a HIF-1 ChIP-seq peak") +
- # theme()
   theme_pubr(x.text.angle = 90)
 plot.TF.sum.perHIF
-ggsave(plot.TF.sum.perHIF, filename = "plot.TF.sum.perHIF.pdf")
+ggsave(plot.TF.sum.perHIF, filename = "../output/plots/plot.TF.sum.perHIF.BETA.pdf")
 
 ```
 
+## Enrichment of other TF association with HIF-1 BETA peaks
 ```{r fig.width=15,fig.height = 5}
+# Frequency of different TF-binding in modENCODE data
 all.TF.counts <- modTF %>% 
   group_by(`#TF`) %>% 
   tally() %>% 
@@ -178,6 +142,7 @@ all.TF.counts <- modTF %>%
 
 TF.enrich.perHIF <- left_join(TF.sum.perHIF, all.TF.counts, by = "TF")
 
+# Calculate enrichment of other TF association with HIF-1 BETA peaks
 TF.enrich.perHIF <- TF.enrich.perHIF %>%
   mutate(enrich = (total/sum(total)/(bg/sum(bg)))) %>%
   arrange(enrich) %>%
@@ -190,14 +155,54 @@ plot.TF.enrich.perHIF <- ggplot(TF.enrich.perHIF, aes(x = TF, y = enrich)) +
  # theme()
   theme_pubr(x.text.angle = 90)
 plot.TF.enrich.perHIF
-ggsave(plot.TF.enrich.perHIF, filename = "plot.TF.enrich.perHIF.pdf")
+ggsave(plot.TF.enrich.perHIF, filename = "../output/plots/plot.TF.enrich.perHIF.BETA.pdf")
+```
+
+## Enrichment of other TF association with HIF-1 BETA peaks with bootstrap intervals
+```{r}
+obs <- sum(TF.enrich.perHIF$total) # Total number of other TF binding sites associated with HIF-1
+wgt <- TF.enrich.perHIF$bg # Background frequency of TF binding sites in modENCODE data
+tf <- TF.enrich.perHIF$TF # Other TF names
+
+sample.TF.freq <- function(x, obs, wgt){
+  s <- sample(tf, size = obs, replace = TRUE, prob = wgt)
+  tab <- table(factor(s, levels = tf))
+  (tab/sum(tab))/(wgt/sum(wgt))
+}
+bg.enrich <- sapply(1:100000, sample.TF.freq, obs = obs, wgt = wgt) # Enrichment expected based on sampling of modENCODE TF frequency
+
+boot <- t(apply(bg.enrich, 1, quantile, probs = c(0.005,0.995))) %>%  # Calculate 99% confidence intervals for expected enrichment
+  as.data.frame() %>% 
+  rownames_to_column(var = "TF") %>% 
+  as_tibble() %>%
+  rename(low = `0.5%`, high = `99.5%`)
+
+boot$low[boot$low == 0] <- min(boot$low[boot$low > 0]) # Set lower-bound > 0 for visualization
 ```
 
 ```{r}
-#outExp <- read_csv("HIF-1_ModEncode_overlap.csv")
-betaExp <- read_xlsx("BETA HIF-1 binding sites.xlsx", col_names = F) 
-names(betaExp) <- c("chr", "start", "end")
+# Calculate enrichment of other TF association with HIF-1 BETA peaks
+TF.enrich.perHIF <- left_join(TF.sum.perHIF, all.TF.counts, by = "TF")
 
-betaExp <- left_join(betaExp, outExp, by = c("start", "end"))
+TF.enrich.perHIF <- TF.enrich.perHIF %>%
+  mutate(enrich = (total/sum(total)/(bg/sum(bg)))) %>%
+  arrange(enrich) %>%
+  mutate(TF = factor(TF, levels = TF))
+
+TF.enrich.perHIF <- left_join(TF.enrich.perHIF, boot) %>%
+  mutate(TF = factor(TF, levels = TF),
+         'Significantly enriched' = ifelse(enrich < low | enrich > high, "TRUE", "FALSE"))
+```
+
+```{r fig.width=15,fig.height = 5}
+plot.TF.enrich.perHIF.bti <- ggplot(TF.enrich.perHIF, aes(x = TF, y = enrich, fill = `Significantly enriched`)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin=low, ymax=high), alpha = 0.5) +
+  scale_fill_brewer(palette = "Set1", direction = -1) +
+  labs(x = "Transcription Factor", y = "TF enrichment at a HIF-1 ChIP-seq peak") +
+  scale_y_continuous(trans = "log2") +
+  theme_pubr(x.text.angle = 90)
+plot.TF.enrich.perHIF.bti
+ggsave(plot.TF.enrich.perHIF, filename = "../output/plots/plot.TF.enrich.with.bti.perHIF.BETA.pdf")
 ```
 
