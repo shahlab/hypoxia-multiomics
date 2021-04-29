@@ -197,14 +197,42 @@ write.csv(TF.enrich.perHIF, "../output/tables/HIF-1_ModEncode_overlap.enrich.csv
 ```
 
 ```{r fig.width=15,fig.height = 5}
-plot.TF.enrich.perHIF.bti <- ggplot(TF.enrich.perHIF, aes(x = TF, y = enrich, fill = `Significantly enriched`)) +
+plot.TF.enrich.perHIF.bti <- ggplot(TF.enrich.perHIF %>% 
+                                      arrange(enrich) %>%
+                                      mutate(TF = factor(TF, levels = TF)), aes(x = TF, y = enrich, fill = `Significantly enriched`)) +
   geom_bar(stat = "identity") +
   geom_errorbar(aes(ymin=low, ymax=high), alpha = 0.5) +
   scale_fill_brewer(palette = "Set1", direction = -1) +
   labs(x = "Transcription Factor", y = "TF enrichment at a HIF-1 ChIP-seq peak") +
-  scale_y_continuous(trans = "log2") +
+  scale_y_continuous(trans = "log2", 
+                     labels = scales::trans_format("log2", scales::math_format(2^.x))) +
   theme_pubr(x.text.angle = 90)
 plot.TF.enrich.perHIF.bti
 ggsave(plot.TF.enrich.perHIF.bti, filename = "../output/plots/plot.TF.enrich.with.bti.perHIF.BETA.pdf")
+
+plot.TF.enrich.perHIF.bti.ord <- ggplot(TF.enrich.perHIF %>% 
+                                      arrange(total) %>%
+                                      mutate(TF = factor(TF, levels = TF)), aes(x = TF, y = enrich, fill = `Significantly enriched`)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin=low, ymax=high), alpha = 0.5) +
+  scale_fill_brewer(palette = "Set1", direction = -1) +
+  labs(x = "Transcription Factor", y = "TF enrichment at a HIF-1 ChIP-seq peak") +
+  scale_y_continuous(trans = "log2", 
+                     labels = scales::trans_format("log2", scales::math_format(2^.x))) +
+  theme_pubr(x.text.angle = 90)
+plot.TF.enrich.perHIF.bti.ord
+ggsave(plot.TF.enrich.perHIF.bti.ord, filename = "../output/plots/plot.TF.enrich.with.bti.perHIF.BETA.ordered.pdf")
+```
+
+```{r fig.width=5,fig.height = 5}
+plot.TF.enrich.vs.TF.freq <- ggplot(TF.enrich.perHIF, aes(x = total, y = enrich, color = `Significantly enriched`)) +
+  geom_point() +
+  scale_color_brewer(palette = "Set1", direction = -1) +
+  labs(x = "TF frequency in modENCODE", y = "TF enrichment at a HIF-1 ChIP-seq peak") +
+  scale_y_continuous(trans = "log2", 
+                     labels = scales::trans_format("log2", scales::math_format(2^.x))) +
+  theme_pubr()
+plot.TF.enrich.vs.TF.freq
+ggsave(plot.TF.enrich.vs.TF.freq, filename = "../output/plots/plot.TF.enrich.vs.TF.freq.pdf")
 ```
 
