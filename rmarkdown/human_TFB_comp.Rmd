@@ -14,15 +14,15 @@ library(ggpubr)
 
 ## Read in TF hits 
 ```{r}
-tf.hits <- read_xlsx("83 direct targets that have human homologs.xlsx")
+tf.hits <- read_xlsx("../data/83 direct targets that have human homologs.xlsx")
 tf.hits <- tf.hits %>% filter(`Human Ortholog` != "N.A.") # Remove genes with no human orthologs
 tf.hits$human <- sapply(strsplit(tf.hits$`Human Ortholog`, " "), `[[`, 1)
 ```
 
 ## Read in human genome and its annotation
 ```{r}
-human.genome <- readDNAStringSet("/data/riboseq/Supp/seqs/human/v28/GRCh38.p12.genome.fa.gz")
-human.annot <- readGFFAsGRanges("/data/riboseq/Supp/seqs/human/v28/gencode.v28.annotation.gff3.gz")
+human.genome <- readDNAStringSet("../GRCh38.p12.genome.fa.gz")
+human.annot <- readGFFAsGRanges("..//gencode.v28.annotation.gff3.gz")
 
 names(human.genome) <- sapply(strsplit(names(human.genome), " "), `[[`, 1) # Fix chromosome names to match annotations
 human.genes <- human.annot[human.annot$type=="gene",] # Filter for only annotations of genes
@@ -92,12 +92,12 @@ hre.plot <- ggplot(bind_rows(a,b), aes(fill = Genes)) +
   labs(x = "Number of HREs", y = "Proportion of genes") +
   theme_pubr()
 hre.plot
-ggsave(hre.plot, filename = "hre.plot.pdf")
+ggsave(hre.plot, filename = "../output/plots/hre.plot.pdf")
 ```
 ## Looking into smaller windows
 ```{r}
-alt.human.hif1 <- sapply(vmatchPattern(human.bs, subseq(tf.seq, end = 4000, width = 100), fixed = F), length)
-alt.other.human.hif1 <- sapply(vmatchPattern(human.bs, subseq(other.tf.seq, end = 4000, width = 100), fixed = F), length)
+alt.human.hif1 <- sapply(vmatchPattern(human.bs, subseq(tf.seq, end = 4000, width = 1000), fixed = F), length)
+alt.other.human.hif1 <- sapply(vmatchPattern(human.bs, subseq(other.tf.seq, end = 4000, width = 1000), fixed = F), length)
 
 alt.tab <- tibble(Names = c(names(alt.human.hif1), names(alt.other.human.hif1)),
                   n = c(alt.human.hif1, alt.other.human.hif1),

@@ -1741,95 +1741,12 @@ pre code {
 <h3>Packages</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyZWFkeGwpXG5saWJyYXJ5KHRpZHl2ZXJzZSlcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyZWFkeGwpXG5saWJyYXJ5KHRpZHl2ZXJzZSlcbmxpYnJhcnkoR2Vub21pY1JhbmdlcylcbmxpYnJhcnkoZ2dwdWJyKVxuYGBgIn0= -->
 <pre class="r"><code>library(readxl)
-library(tidyverse)</code></pre>
+library(tidyverse)
+library(GenomicRanges)
+library(ggpubr)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiUmVnaXN0ZXJlZCBTMyBtZXRob2RzIG92ZXJ3cml0dGVuIGJ5ICdkYnBseXInOlxuICBtZXRob2QgICAgICAgICBmcm9tXG4gIHByaW50LnRibF9sYXp5ICAgICBcbiAgcHJpbnQudGJsX3NxbCAgICAgIFxu4pSA4pSAIEF0dGFjaGluZyBwYWNrYWdlcyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAgdGlkeXZlcnNlIDEuMy4wIOKUgOKUgFxu4pyTIGdncGxvdDIgMy4zLjMgICAgIOKckyBwdXJyciAgIDAuMy40XG7inJMgdGliYmxlICAzLjEuMCAgICAg4pyTIGRwbHlyICAgMS4wLjVcbuKckyB0aWR5ciAgIDEuMS4zICAgICDinJMgc3RyaW5nciAxLjQuMFxu4pyTIHJlYWRyICAgMS40LjAgICAgIOKckyBmb3JjYXRzIDAuNS4xXG7ilIDilIAgQ29uZmxpY3RzIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgCB0aWR5dmVyc2VfY29uZmxpY3RzKCkg4pSA4pSAXG54IGRwbHlyOjpmaWx0ZXIoKSBtYXNrcyBzdGF0czo6ZmlsdGVyKClcbnggZHBseXI6OmxhZygpICAgIG1hc2tzIHN0YXRzOjpsYWcoKVxuIn0= -->
-<pre><code>Registered S3 methods overwritten by &#39;dbplyr&#39;:
-  method         from
-  print.tbl_lazy     
-  print.tbl_sql      
-── Attaching packages ────────────────────────────────────── tidyverse 1.3.0 ──
-✓ ggplot2 3.3.3     ✓ purrr   0.3.4
-✓ tibble  3.1.0     ✓ dplyr   1.0.5
-✓ tidyr   1.1.3     ✓ stringr 1.4.0
-✓ readr   1.4.0     ✓ forcats 0.5.1
-── Conflicts ───────────────────────────────────────── tidyverse_conflicts() ──
-x dplyr::filter() masks stats::filter()
-x dplyr::lag()    masks stats::lag()</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShHZW5vbWljUmFuZ2VzKVxuYGBgIn0= -->
-<pre class="r"><code>library(GenomicRanges)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBzdGF0czRcbkxvYWRpbmcgcmVxdWlyZWQgcGFja2FnZTogQmlvY0dlbmVyaWNzXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IHBhcmFsbGVsXG5cbkF0dGFjaGluZyBwYWNrYWdlOiDigJhCaW9jR2VuZXJpY3PigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOnBhcmFsbGVs4oCZOlxuXG4gICAgY2x1c3RlckFwcGx5LCBjbHVzdGVyQXBwbHlMQiwgY2x1c3RlckNhbGwsIGNsdXN0ZXJFdmFsUSxcbiAgICBjbHVzdGVyRXhwb3J0LCBjbHVzdGVyTWFwLCBwYXJBcHBseSwgcGFyQ2FwcGx5LCBwYXJMYXBwbHksXG4gICAgcGFyTGFwcGx5TEIsIHBhclJhcHBseSwgcGFyU2FwcGx5LCBwYXJTYXBwbHlMQlxuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6ZHBseXLigJk6XG5cbiAgICBjb21iaW5lLCBpbnRlcnNlY3QsIHNldGRpZmYsIHVuaW9uXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0cyBhcmUgbWFza2VkIGZyb20g4oCYcGFja2FnZTpzdGF0c+KAmTpcblxuICAgIElRUiwgbWFkLCBzZCwgdmFyLCB4dGFic1xuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6YmFzZeKAmTpcblxuICAgIGFueUR1cGxpY2F0ZWQsIGFwcGVuZCwgYXMuZGF0YS5mcmFtZSwgYmFzZW5hbWUsIGNiaW5kLCBjb2xuYW1lcyxcbiAgICBkaXJuYW1lLCBkby5jYWxsLCBkdXBsaWNhdGVkLCBldmFsLCBldmFscSwgRmlsdGVyLCBGaW5kLCBnZXQsXG4gICAgZ3JlcCwgZ3JlcGwsIGludGVyc2VjdCwgaXMudW5zb3J0ZWQsIGxhcHBseSwgTWFwLCBtYXBwbHksIG1hdGNoLFxuICAgIG1nZXQsIG9yZGVyLCBwYXN0ZSwgcG1heCwgcG1heC5pbnQsIHBtaW4sIHBtaW4uaW50LCBQb3NpdGlvbixcbiAgICByYW5rLCByYmluZCwgUmVkdWNlLCByb3duYW1lcywgc2FwcGx5LCBzZXRkaWZmLCBzb3J0LCB0YWJsZSxcbiAgICB0YXBwbHksIHVuaW9uLCB1bmlxdWUsIHVuc3BsaXQsIHdoaWNoLCB3aGljaC5tYXgsIHdoaWNoLm1pblxuXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IFM0VmVjdG9yc1xuXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYUzRWZWN0b3Jz4oCZXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0cyBhcmUgbWFza2VkIGZyb20g4oCYcGFja2FnZTpkcGx5cuKAmTpcblxuICAgIGZpcnN0LCByZW5hbWVcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTp0aWR5cuKAmTpcblxuICAgIGV4cGFuZFxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmJhc2XigJk6XG5cbiAgICBleHBhbmQuZ3JpZFxuXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IElSYW5nZXNcblxuQXR0YWNoaW5nIHBhY2thZ2U6IOKAmElSYW5nZXPigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmRwbHly4oCZOlxuXG4gICAgY29sbGFwc2UsIGRlc2MsIHNsaWNlXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0IGlzIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6cHVycnLigJk6XG5cbiAgICByZWR1Y2VcblxuTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBHZW5vbWVJbmZvRGJcbiJ9 -->
-<pre><code>Loading required package: stats4
-Loading required package: BiocGenerics
-Loading required package: parallel
-
-Attaching package: ‘BiocGenerics’
-
-The following objects are masked from ‘package:parallel’:
-
-    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
-    clusterExport, clusterMap, parApply, parCapply, parLapply,
-    parLapplyLB, parRapply, parSapply, parSapplyLB
-
-The following objects are masked from ‘package:dplyr’:
-
-    combine, intersect, setdiff, union
-
-The following objects are masked from ‘package:stats’:
-
-    IQR, mad, sd, var, xtabs
-
-The following objects are masked from ‘package:base’:
-
-    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
-    dirname, do.call, duplicated, eval, evalq, Filter, Find, get,
-    grep, grepl, intersect, is.unsorted, lapply, Map, mapply, match,
-    mget, order, paste, pmax, pmax.int, pmin, pmin.int, Position,
-    rank, rbind, Reduce, rownames, sapply, setdiff, sort, table,
-    tapply, union, unique, unsplit, which, which.max, which.min
-
-Loading required package: S4Vectors
-
-Attaching package: ‘S4Vectors’
-
-The following objects are masked from ‘package:dplyr’:
-
-    first, rename
-
-The following object is masked from ‘package:tidyr’:
-
-    expand
-
-The following object is masked from ‘package:base’:
-
-    expand.grid
-
-Loading required package: IRanges
-
-Attaching package: ‘IRanges’
-
-The following objects are masked from ‘package:dplyr’:
-
-    collapse, desc, slice
-
-The following object is masked from ‘package:purrr’:
-
-    reduce
-
-Loading required package: GenomeInfoDb</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShnZ3B1YnIpXG5gYGAifQ== -->
-<pre class="r"><code>library(ggpubr)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiUmVnaXN0ZXJlZCBTMyBtZXRob2Qgb3ZlcndyaXR0ZW4gYnkgJ2RhdGEudGFibGUnOlxuICBtZXRob2QgICAgICAgICAgIGZyb21cbiAgcHJpbnQuZGF0YS50YWJsZSAgICAgXG4ifQ== -->
-<pre><code>Registered S3 method overwritten by &#39;data.table&#39;:
-  method           from
-  print.data.table     </code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->

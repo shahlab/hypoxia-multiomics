@@ -14,7 +14,7 @@ library(rtracklayer)
 
 ## Read in TF hits 
 ```{r}
-wtf.hits <- read_xlsx("TF binding sites within HIF1 direct targets.xlsx") %>% 
+wtf.hits <- read_xlsx("../data/TF binding sites within HIF1 direct targets.xlsx") %>% 
   mutate(pStart = as.integer(pStart), pEnd = as.integer(pEnd))
 wtf.genes <- unique(c(unlist(wtf.hits[, 4:11])))
 wtf.genes <- wtf.genes[!is.na(wtf.genes)]
@@ -22,8 +22,8 @@ wtf.genes <- wtf.genes[!is.na(wtf.genes)]
 
 ## Read in worm genome and its annotation
 ```{r}
-worm.genome <- readDNAStringSet("/data/riboseq/Supp/seqs/worm/Caenorhabditis_elegans.WBcel235.dna.toplevel.fa.gz")
-worm.annot <- readGFFAsGRanges("/data/riboseq/Supp/seqs/worm/Caenorhabditis_elegans.WBcel235.97.gff3.gz")
+worm.genome <- readDNAStringSet("../data/Caenorhabditis_elegans.WBcel235.dna.toplevel.fa.gz")
+worm.annot <- readGFFAsGRanges("../data/Caenorhabditis_elegans.WBcel235.97.gff3.gz")
 
 names(worm.genome) <- sapply(strsplit(names(worm.genome), " "), `[[`, 1)
 worm.genes <- worm.annot[worm.annot$type=="gene",]
@@ -55,10 +55,10 @@ wtf.worm.rev.loc <- unlist(wtf.worm.rev)  %>% as.data.frame() %>% as_tibble()
 wtf.human.fwd.loc <- unlist(wtf.human.fwd)  %>% as.data.frame() %>% as_tibble()
 wtf.human.rev.loc <- unlist(wtf.human.rev)  %>% as.data.frame() %>% as_tibble()
 
-write.csv(wtf.worm.fwd.loc, file = "hif1.chippeaks.fwd.ACGTGAHWWTTRYSA.csv")
-write.csv(wtf.worm.rev.loc, file = "hif1.chippeaks.rev.ACGTGAHWWTTRYSA.csv")
-write.csv(wtf.human.fwd.loc, file = "hif1.chippeaks.fwd.ACGTGA.csv")
-write.csv(wtf.human.rev.loc, file = "hif1.chippeaks.rev.AACGTGA.csv")
+write.csv(wtf.worm.fwd.loc, file = "../output/tables/hif1.chippeaks.fwd.ACGTGAHWWTTRYSA.csv")
+write.csv(wtf.worm.rev.loc, file = "../output/tables/hif1.chippeaks.rev.ACGTGAHWWTTRYSA.csv")
+write.csv(wtf.human.fwd.loc, file = "../output/tables/hif1.chippeaks.fwd.ACGTGA.csv")
+write.csv(wtf.human.rev.loc, file = "../output/tables/hif1.chippeaks.rev.AACGTGA.csv")
 ```
 
 ## Get promoter sequences of select genes with CHIP peaks
@@ -83,8 +83,8 @@ wtf.genes.human.hif1 <- unlist(vmatchPattern(human.bs, wtf.seq, fixed = F)) %>%
   as.data.frame() %>%
   as_tibble()
 
-write.csv(wtf.genes.worm.hif1, file = "hif1.loc4000.genes.ACGTGAHWWTTRYSA.csv")
-write.csv(wtf.genes.human.hif1, file = "hif1.loc4000.genes.ACGTGA.csv")
+write.csv(wtf.genes.worm.hif1, file = "../output/tables/hif1.loc4000.genes.ACGTGAHWWTTRYSA.csv")
+write.csv(wtf.genes.human.hif1, file = "../output/tables/hif1.loc4000.genes.ACGTGA.csv")
 ```
 
 ## Data wrangling
@@ -98,6 +98,6 @@ data <- wtf.hits %>%
   group_by(gene, TF) %>%
   summarise(Hits = sum(hits))
 
-write.csv(data, file = "genes.tf.hits.csv")
+write.csv(data, file = "../output/tables/genes.tf.hits.csv")
 ```
 
