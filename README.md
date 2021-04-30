@@ -7,5 +7,10 @@ The repo is organized into folders with self-descriptive names. For example, cod
 Prior to running the code, download the following files and place them in the `data` folder.
 
 ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/GRCh38.p12.genome.fa.gz
-
 ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_28/gencode.v28.annotation.gff3.gz
+
+Each RMD file in the `rmarkdown` folder can be run independently. These files should be executed from their source folder - `rmarkdown`.
+1. `worm_TFB_comp.Rmd` - Find HIF1 binding sites in CHIP peaks in worm.
+2. `human_TFB_comp.Rmd` - Analysis of human orthologs of worm HIF1 binding sites and analysis of HRE elements.
+3. `overlap_with_modENCODE.Rmd` - Analysis of overlap of other TF binding sites with HIF1 binding sites.
+4. `chipseq_overlap.Rmd` - A general purpose script to identify overlap between CHIP-seq peaks.
