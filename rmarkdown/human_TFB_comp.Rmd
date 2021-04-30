@@ -51,7 +51,7 @@ final.bs.loc <- unlist(human.hif1) %>%
   as_tibble() %>% 
   mutate(Pos = start) %>% 
   select(-c(end,width,start))
-# write.csv(final.bs.loc, file = "hif1.loc4000.humans.csv")
+write.csv(final.bs.loc, file = "../output/tables/hif1.loc4000.humans.csv")
 ```
 
 ```{r}
@@ -78,7 +78,7 @@ final.bs.loc.other <- unlist(other.human.hif1) %>%
   mutate(Pos = start) %>% 
   select(-c(end,width,start))
 
-# write.csv(final.bs.loc.other, file = "hif1.loc4000.humans.other.genes.csv")
+write.csv(final.bs.loc.other, file = "../output/tables/hif1.loc4000.humans.other.genes.csv")
 
 ```
 
