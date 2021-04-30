@@ -21,8 +21,8 @@ tf.hits$human <- sapply(strsplit(tf.hits$`Human Ortholog`, " "), `[[`, 1)
 
 ## Read in human genome and its annotation
 ```{r}
-human.genome <- readDNAStringSet("../GRCh38.p12.genome.fa.gz")
-human.annot <- readGFFAsGRanges("..//gencode.v28.annotation.gff3.gz")
+human.genome <- readDNAStringSet("../data/GRCh38.p12.genome.fa.gz")
+human.annot <- readGFFAsGRanges("../data/gencode.v28.annotation.gff3.gz")
 
 names(human.genome) <- sapply(strsplit(names(human.genome), " "), `[[`, 1) # Fix chromosome names to match annotations
 human.genes <- human.annot[human.annot$type=="gene",] # Filter for only annotations of genes
