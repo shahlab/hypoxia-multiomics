@@ -1,0 +1,169 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(DESeq2)
+library(ggpubr)
+```
+
+```{r}
+counts <- read_tsv("../../bono_hirota_2020/salmon_human18.tsv")
+counts
+```
+
+```{r}
+hn2_chip <- read_tsv("../../bono_hirota_2020/human18_hn2_ChIP.tsv")
+```
+```{r}
+rna_data <- read_tsv("../../bono_hirota_2020/rnaseq_human18.tsv")
+for(i in 2:nrow(rna_data)){
+  if(is.na(rna_data$human[i]))
+    rna_data$human[i] <- rna_data$human[i-1]
+}
+rna_data$duration[is.na(rna_data$duration)] <- "unknown"
+rna_data$`O2 concentration`[is.na(rna_data$`O2 concentration`)] <- "unknown"
+
+rna_data_ps <- rna_data %>%
+  select(human, sample, `O2 concentration`, duration, `hypoxia(SRR)`, `normoxia(SRR)`) %>%
+  unite(1:4, col = "sample", sep = "_")
+
+mult_rep <- rna_data %>%
+  group_by(human, sample, `O2 concentration`, duration) %>%
+  tally() %>%
+  arrange(desc(n)) %>%
+  filter(n > 1) %>%
+  unite(1:4, col = "sample", sep = "_")
+
+rna_data_ps %>%
+  filter(sample %in% mult_rep$sample) %>%
+  write_tsv("../../bono_hirota_2020/ps_filtered_data.tsv")
+```
+```{r}
+deseq.res <- read_csv("/data2/2021_Rongo/data_frames/deseq_results.csv")
+deseq.res <- deseq.res %>%
+  separate(col = samples, into = c("data", "cell.type", "condition", "duration"), sep = "_", remove = F) %>%
+  select(-c(samples, lfcSE))
+
+```
+
+## human orthologs
+```{r}
+tf.hits <- read_xlsx("../data/83 direct targets that have human homologs.xlsx")
+tf.hits <- tf.hits %>% filter(`Human Ortholog` != "N.A.") # Remove genes with no human orthologs
+tf.hits$ENSG <- sapply(strsplit(tf.hits$`Human Ortholog`, " "), `[[`, 1)
+ortho <- tf.hits %>%
+  select(ENSG) %>%
+  distinct()
+
+genes.deseq <- counts %>% 
+  select(GeneName) %>% 
+  dplyr::rename(Gene = GeneName)
+
+gene.id <- read_tsv("../../bono_hirota_2020/170704all_HN2.txt") %>%
+  select(ENSG_Gene) %>%
+  separate(ENSG_Gene, into = c("ENSG", "Gene"), sep = "_", extra = "merge")
+
+final.ortho <- left_join(genes.deseq, gene.id, by = "Gene") %>%
+  left_join(ortho, ., by = "ENSG") %>%
+  filter(!is.na(Gene)) %>%
+  arrange(Gene) 
+
+```
+
+## Percentile of orthologs in gene expression changes
+```{r}
+ecdf_fun <- function(data, genes) {
+  x <- data$log2FoldChange
+  perc <- data$log2FoldChange[data$gene_name %in% genes]
+  out <- ecdf(x)(perc)
+  names(out) <- genes
+  return(out)
+  }
+
+perc.ortho <- deseq.res %>%
+  arrange(samples, gene_name) %>%
+  group_by(samples, data, cell.type, condition, duration) %>%
+  group_modify(~ ecdf_fun(data = ., genes = final.ortho$Gene) %>%
+                 enframe(name = "Gene", value = "quantile"))
+
+perc.ortho
+
+write_csv(deseq.res, gzfile("../output/tables/human_hypoxia_diff_expression.csv.gz"))
+write_csv(perc.ortho, "../output/tables/worm_orthologs_human_hypoxia_percentile.csv")
+```
+
+```{r}
+perc.ortho %>% 
+  filter(Gene == "ACSF3") %>%
+  group_by(duration) %>%
+  tally()
+```
+
+```{r fig.width=20, fig.height=15}
+ortho.perc.1 <- ggplot(perc.ortho, aes(quantile)) +
+  geom_density() +
+  facet_wrap(~Gene, scales = "free_y") +
+  theme_pubr()
+
+ortho.perc.1 
+
+ortho.perc.2 <- ggplot(perc.ortho, aes(quantile, fill = duration)) +
+  geom_histogram() +
+  scale_fill_brewer(palette = "Dark2") +
+  facet_wrap(~Gene, scales = "free_y") +
+  theme_pubr()
+
+ortho.perc.2 
+
+ortho.perc.3 <- ggplot(perc.ortho, aes(quantile, fill = condition)) +
+  geom_histogram() +
+  scale_fill_brewer(palette = "Dark2") +
+  facet_wrap(~Gene, scales = "free_y") +
+  theme_pubr()
+
+ortho.perc.3 
+
+ggsave(ortho.perc.1, filename = "../output/plots/plot.dist.percentile.human.hypoxia.ortholog.pdf", width = 20, height = 15)
+ggsave(ortho.perc.2, filename = "../output/plots/plot.hist.percentile.duration.human.hypoxia.ortholog.pdf", width = 20, height = 15)
+ggsave(ortho.perc.3, filename = "../output/plots/plot.hist.percentile.condition.human.hypoxia.ortholog.pdf", width = 20, height = 15)
+```
+
+```{r}
+tmp <- deseq.res %>%
+  filter(grepl("PCK1", gene_name)) %>%
+  separate(col = samples, into = c("data", "cell.type", "condition", "duration"), sep = "_", )
+tmp
+deseq.res %>%
+  filter(grepl("PCK1", gene_name)) %>%
+  ggplot(., aes(baseMean, log2FoldChange, col = padj < 0.05)) +
+  geom_point() +
+  scale_x_log10()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+```
+
+
+
+
+
+```{r}
+d2$log2FoldChange[d2$gene_name %in% tf.hits$Gene]
+```
+
