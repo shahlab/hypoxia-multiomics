@@ -41,12 +41,13 @@ rna_data_ps %>%
   filter(sample %in% mult_rep$sample) %>%
   write_tsv("../../bono_hirota_2020/ps_filtered_data.tsv")
 ```
+
 ```{r}
 deseq.res <- read_csv("/data2/2021_Rongo/data_frames/deseq_results.csv")
 deseq.res <- deseq.res %>%
-  separate(col = samples, into = c("data", "cell.type", "condition", "duration"), sep = "_", remove = F) %>%
-  select(-c(samples, lfcSE))
+  separate(col = samples, into = c("data", "cell.type", "condition", "duration"), sep = "_", remove = F)
 
+write_csv(deseq.res, gzfile("../output/tables/human_hypoxia_diff_expression.csv.gz"))s
 ```
 
 ## human orthologs
@@ -91,15 +92,7 @@ perc.ortho <- deseq.res %>%
 
 perc.ortho
 
-write_csv(deseq.res, gzfile("../output/tables/human_hypoxia_diff_expression.csv.gz"))
 write_csv(perc.ortho, "../output/tables/worm_orthologs_human_hypoxia_percentile.csv")
-```
-
-```{r}
-perc.ortho %>% 
-  filter(Gene == "ACSF3") %>%
-  group_by(duration) %>%
-  tally()
 ```
 
 ```{r fig.width=20, fig.height=15}
@@ -130,40 +123,308 @@ ggsave(ortho.perc.1, filename = "../output/plots/plot.dist.percentile.human.hypo
 ggsave(ortho.perc.2, filename = "../output/plots/plot.hist.percentile.duration.human.hypoxia.ortholog.pdf", width = 20, height = 15)
 ggsave(ortho.perc.3, filename = "../output/plots/plot.hist.percentile.condition.human.hypoxia.ortholog.pdf", width = 20, height = 15)
 ```
+```{r}
+neigh.genes <- c("DHRS4L1",
+"CARMIL3",
+"CPNE6",
+"NRL",
+"DCAF11",
+"FITM1",
+"PSME1",
+"EMC9",
+"PSME2",
+"RNF31")
+
+perc.ortho.2 <- deseq.res %>%
+  arrange(samples, gene_name) %>%
+  group_by(samples, data, cell.type, condition, duration) %>%
+  group_modify(~ ecdf_fun(data = ., genes = neigh.genes) %>%
+                 enframe(name = "Gene", value = "quantile"))
+
+perc.ortho
+perc.ortho.2
+
+write_csv(perc.ortho.2, "../output/tables/neighbors_worm_orthologs_human_hypoxia_percentile.csv")
+```
+
+```{r fig.width=20, fig.height=15}
+neigh.ortho.perc.1 <- ggplot(perc.ortho.2, aes(quantile)) +
+  geom_density() +
+  facet_wrap(~Gene, scales = "free_y") +
+  theme_pubr()
+
+neigh.ortho.perc.1 
+
+neigh.ortho.perc.2 <- ggplot(perc.ortho.2, aes(quantile, fill = duration)) +
+  geom_histogram() +
+  scale_fill_brewer(palette = "Dark2") +
+  facet_wrap(~Gene, scales = "free_y") +
+  theme_pubr()
+
+neigh.ortho.perc.2 
+
+neigh.ortho.perc.3 <- ggplot(perc.ortho.2, aes(quantile, fill = condition)) +
+  geom_histogram() +
+  scale_fill_brewer(palette = "Dark2") +
+  facet_wrap(~Gene, scales = "free_y") +
+  theme_pubr()
+
+neigh.ortho.perc.3 
+
+ggsave(neigh.ortho.perc.1, filename = "../output/plots/plot.dist.percentile.human.hypoxia.ortholog.neigh.pdf", width = 20, height = 15)
+ggsave(neigh.ortho.perc.2, filename = "../output/plots/plot.hist.percentile.duration.human.hypoxia.ortholog.neigh.pdf", width = 20, height = 15)
+ggsave(neigh.ortho.perc.3, filename = "../output/plots/plot.hist.percentile.condition.human.hypoxia.ortholog.neigh.pdf", width = 20, height = 15)
+```
+
+
+
+
+## Correlataion between orthologs
+```{r fig.width = 10, fig.height = 10}
+a <- perc.ortho %>%
+  ungroup() %>%
+  select(samples, Gene, quantile) %>%
+  pivot_wider(names_from = Gene, values_from = quantile) %>%
+  select(-samples) %>%
+  cor(., use = "pairwise.complete.obs", method = "spearman")
+
+a[upper.tri(a)] <- NA
+
+b <- deseq.res %>%
+  filter(gene_name %in% final.ortho$Gene) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) %>%
+  select(-samples) %>%
+  cor(., use = "pairwise.complete.obs", method = "spearman")
+
+b[upper.tri(b)] <- NA
+
+a2 <- a %>%
+  as.data.frame() %>%
+  rownames_to_column("From") %>%
+  as_tibble() %>%
+  pivot_longer(2:76, names_to = "To", values_to = "Cor") %>%
+  filter(!is.na(Cor)) %>%
+  filter(From != To, To!="TDRD15", From!="TDRD15")
+
+a2
+a2 %>% filter(Cor > 0.7, From != To, To!="TDRD15", From!="TDRD15") 
+a2 %>% filter(Cor < -0.7, From != To, To!="TDRD15", From!="TDRD15") 
+
+ggplot(a2, aes(From, To, fill = Cor)) +
+  geom_tile() +
+  scale_fill_gradient2(low ="red",
+  mid = "white",
+  high = "blue",
+  midpoint = 0)
+
+pheatmap::pheatmap(a)
+pheatmap::pheatmap(b)
+```
 
 ```{r}
-tmp <- deseq.res %>%
-  filter(grepl("PCK1", gene_name)) %>%
-  separate(col = samples, into = c("data", "cell.type", "condition", "duration"), sep = "_", )
-tmp
+dim(a)
+```
+
+```{r fig.width=20, fig.height=15}
+perc.ortho %>%
+  filter(quantile > 0.75) %>%
+  group_by(Gene) %>%
+  tally() %>%
+  arrange(desc(n))
+```
+
+
+
+
+```{r fig.width=35, fig.height=10}
+ortho.new <- read_xlsx("../../Orthologs of Worm HIF-1 ChIP-seq Direct Targets.xlsx")
+
+d <- deseq.res %>%
+  filter(gene_name %in% c(final.ortho$Gene, "PCK1")) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) %>%
+  select(-samples)
+
+pheatmap::pheatmap(d)
+
+d <- deseq.res %>%
+  filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) 
+
+x <- apply(d, 2, function(x)sum(is.na(x)))
+d <- d[-24,-which(x>11)] 
+
+my_gene_row <- d %>%
+  select(samples) %>%
+  separate(samples, into = c("GSE", "cell.type", "condition", "duration"), remove = F, sep = "_") %>%
+  select(-GSE) %>% 
+  column_to_rownames("samples") %>%
+  
+
+my_gene_row <- my_gene_row[-24,]
+
+paletteLength <- 50
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+# length(breaks) == length(paletteLength) + 1
+# use floor and ceiling to deal with even/odd length pallettelengths
+myBreaks <- c(seq(-10, 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(10/paletteLength, 10, length.out=floor(paletteLength/2)))
+
+
+category.colors <- colorRampPalette(grDevices::rainbow(30))
+cell.type.col <- category.colors(length(unique(my_gene_row$cell.type)))
+names(cell.type.col) <- unique(my_gene_row$cell.type)
+condition.col <- category.colors(length(unique(my_gene_row$condition)))
+names(condition.col) <- unique(my_gene_row$condition)
+duration.col <- category.colors(length(unique(my_gene_row$duration)))
+names(duration.col) <- unique(my_gene_row$duration)
+
+mycolors <- list(cell.type = cell.type.col, condition = condition.col, duration = duration.col)
+
+# Plot the heatmap
+old.ortho.heatmap <- pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, annotation_row = my_gene_row, annotation_colors = mycolors)
+old.ortho.heatmap
+
+ggsave(old.ortho.heatmap, filename = "../output/plots/plot.heatmap.human.hypoxia.orthologs.old.pdf", width = 35, height = 10)
+
+# pheatmap::pheatmap(d)
+
+```
+
+
+```{r fig.width=35, fig.height=10}
+ortho.new2 <- read_csv("../../new.orthologs", col_names = F)
+
+d <- deseq.res %>%
+  filter(gene_name %in% ortho.new2$X1) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) 
+
+x <- apply(d, 2, function(x)sum(is.na(x)))
+d <- d[-24,-which(x>11)] 
+
+my_gene_row <- d %>%
+  select(samples) %>%
+  separate(samples, into = c("GSE", "cell.type", "condition", "duration"), remove = F, sep = "_") %>%
+  select(-GSE) %>% 
+  column_to_rownames("samples") 
+  
+my_gene_row <- my_gene_row[-24,]
+
+paletteLength <- 50
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+# length(breaks) == length(paletteLength) + 1
+# use floor and ceiling to deal with even/odd length pallettelengths
+myBreaks <- c(seq(-10, 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(10/paletteLength, 10, length.out=floor(paletteLength/2)))
+
+
+category.colors <- colorRampPalette(grDevices::rainbow(30))
+cell.type.col <- category.colors(length(unique(my_gene_row$cell.type)))
+names(cell.type.col) <- unique(my_gene_row$cell.type)
+condition.col <- category.colors(length(unique(my_gene_row$condition)))
+names(condition.col) <- unique(my_gene_row$condition)
+duration.col <- category.colors(length(unique(my_gene_row$duration)))
+names(duration.col) <- unique(my_gene_row$duration)
+
+mycolors <- list(cell.type = cell.type.col, condition = condition.col, duration = duration.col)
+
+d <- d %>% 
+  column_to_rownames("samples") 
+# Plot the heatmap
+ortho.heatmap <- pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, annotation_row = my_gene_row, annotation_colors = mycolors)
+ortho.heatmap
+
+ggsave(ortho.heatmap, filename = "../output/plots/plot.heatmap.human.hypoxia.orthologs.pdf", width = 35, height = 10)
+
+# pheatmap::pheatmap(d)
+
+```
+
+
+```{r}
 deseq.res %>%
-  filter(grepl("PCK1", gene_name)) %>%
-  ggplot(., aes(baseMean, log2FoldChange, col = padj < 0.05)) +
-  geom_point() +
-  scale_x_log10()
+  filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) %>%
+  .[24,]
 ```
-
-
-
-
-
-
-
-
-
-
-
 
 
 ```{r}
+d <- deseq.res %>%
+  filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange)
 
+d %>%
+  select(samples, PCK1, PCK2) %>%
+  arrange(desc(PCK2)) %>%
+  filter(grepl("CoCl2", samples))
 ```
+```{r fig.width=25, fig.height=10}
+q <- deseq.res %>%
+  # filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) %>%
+  select(-samples)
+
+x <- apply(q, 2, function(x)sum(is.na(x)))
+q <- q[,-which(x>11)]
 
 
+paletteLength <- 50
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+# length(breaks) == length(paletteLength) + 1
+# use floor and ceiling to deal with even/odd length pallettelengths
+myBreaks <- c(seq(-20, 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(20/paletteLength, 10, length.out=floor(paletteLength/2)))
 
+# Plot the heatmap
+pheatmap::pheatmap(q, color=myColor, breaks=myBreaks)
+```
 
 
 ```{r}
-d2$log2FoldChange[d2$gene_name %in% tf.hits$Gene]
+deseq.res %>%
+  filter(log2FoldChange > 0, grepl("PCK2", gene_name)) %>%
+  arrange(desc(log2FoldChange))
 ```
+```{r}
+a <- read_tsv("../../HIF1A.10.tsv")
+b <- a %>%
+  filter(grepl("PCK", Target_genes)) %>%
+  select(1,2)
+unlist(b[,2])
+which(b>0)
+
+ggplot(a, aes(`HIF1A|Average`)) +
+  geom_density() +
+  scale_x_log10() +
+  geom_vline(xintercept = unlist(b[,2]), inherit.aes = F)
+
+ecdf(unlist(a[,2]))(unlist(b[,2]))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
