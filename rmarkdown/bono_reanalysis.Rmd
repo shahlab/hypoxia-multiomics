@@ -434,7 +434,7 @@ obs.counts.hist
 ggsave(obs.counts.hist, filename = "../output/plots/plot.dist.human.hypoxia.orthologs.obs.datasets.pdf")
 ```
 
-```{r fig.width = 20, fig.height=20}
+```{r fig.width = 30, fig.height=30}
 cor.ortho <- deseq.res %>%
   filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
   select(samples, gene_name, log2FoldChange) %>%
@@ -447,9 +447,12 @@ cor.ortho <- deseq.res %>%
   select(-samples) %>%
   cor(., use = "pairwise.complete.obs", method = "spearman")
 
-# cor.ortho[upper.tri(cor.ortho)] <- NA
+paletteLength <- 50
+myColor <- colorRampPalette(c("#0571b0", "white", "#ca0020"))(paletteLength)
+myBreaks <- c(seq(-1, 1, length.out= paletteLength-1))
 
-all.cor.fc <- pheatmap::pheatmap(cor.ortho)
+# Plot the heatmap
+all.cor.fc <- pheatmap::pheatmap(cor.ortho, color=myColor, breaks=myBreaks)
 all.cor.fc
 
 cor.ortho <- deseq.res %>%
@@ -466,15 +469,18 @@ cor.ortho <- deseq.res %>%
 
 # cor.ortho[upper.tri(cor.ortho)] <- NA
 
-only15.cor.fc <- pheatmap::pheatmap(cor.ortho)
+only15.cor.fc <- pheatmap::pheatmap(cor.ortho, color=myColor, breaks=myBreaks)
 only15.cor.fc
 
 ggsave(all.cor.fc, filename = "../output/plots/plot.heatmap.cor.human.hypoxia.orthologs.all.genes.pdf", width = 30, height = 30)
-ggsave(all.cor.fc, filename = "../output/plots/plot.heatmap.cor.human.hypoxia.orthologs.gt15data.genes.pdf", width = 30, height = 30)
+ggsave(only15.cor.fc, filename = "../output/plots/plot.heatmap.cor.human.hypoxia.orthologs.gt15data.genes.pdf", width = 30, height = 30)
 
 ```
 
 
+```{r}
+all.cor.fc
+```
 
 
 
