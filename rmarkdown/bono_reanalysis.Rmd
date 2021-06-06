@@ -7,6 +7,7 @@ output: html_notebook
 library(tidyverse)
 library(DESeq2)
 library(ggpubr)
+library(readxl)
 ```
 
 ```{r}
@@ -260,7 +261,7 @@ my_gene_row <- d %>%
   select(samples) %>%
   separate(samples, into = c("GSE", "cell.type", "condition", "duration"), remove = F, sep = "_") %>%
   select(-GSE) %>% 
-  column_to_rownames("samples") %>%
+  column_to_rownames("samples") 
   
 
 my_gene_row <- my_gene_row[-24,]
@@ -283,6 +284,8 @@ names(duration.col) <- unique(my_gene_row$duration)
 
 mycolors <- list(cell.type = cell.type.col, condition = condition.col, duration = duration.col)
 
+d <- d %>% 
+  column_to_rownames("samples") 
 # Plot the heatmap
 old.ortho.heatmap <- pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, annotation_row = my_gene_row, annotation_colors = mycolors)
 old.ortho.heatmap
@@ -340,7 +343,7 @@ ortho.heatmap
 ggsave(ortho.heatmap, filename = "../output/plots/plot.heatmap.human.hypoxia.orthologs.pdf", width = 35, height = 10)
 
 # pheatmap::pheatmap(d)
-
+dim(ortho.new2)
 ```
 
 
@@ -364,6 +367,7 @@ d %>%
   arrange(desc(PCK2)) %>%
   filter(grepl("CoCl2", samples))
 ```
+
 ```{r fig.width=25, fig.height=10}
 q <- deseq.res %>%
   # filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
@@ -392,6 +396,7 @@ deseq.res %>%
   filter(log2FoldChange > 0, grepl("PCK2", gene_name)) %>%
   arrange(desc(log2FoldChange))
 ```
+
 ```{r}
 a <- read_tsv("../../HIF1A.10.tsv")
 b <- a %>%
@@ -412,6 +417,62 @@ ecdf(unlist(a[,2]))(unlist(b[,2]))
 
 
 
+```{r}
+obs.counts.hist <- deseq.res %>%
+  filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  group_by(gene_name) %>% 
+  mutate(m = sum(!is.na(log2FoldChange))) %>%
+  select(gene_name, m) %>%
+  distinct() %>%
+  ggplot(., aes(m)) + 
+  geom_histogram(binwidth = 1) +
+  theme_pubr() +
+  labs(x = "Number of datasets with obsserved expression", y = "number of genes")
+obs.counts.hist
+
+ggsave(obs.counts.hist, filename = "../output/plots/plot.dist.human.hypoxia.orthologs.obs.datasets.pdf")
+```
+
+```{r fig.width = 20, fig.height=20}
+cor.ortho <- deseq.res %>%
+  filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  group_by(gene_name) %>% 
+  mutate(m = sum(!is.na(log2FoldChange))) %>%
+  ungroup() %>%
+  # filter(m >= 15) %>%
+  select(-m) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) %>%
+  select(-samples) %>%
+  cor(., use = "pairwise.complete.obs", method = "spearman")
+
+# cor.ortho[upper.tri(cor.ortho)] <- NA
+
+all.cor.fc <- pheatmap::pheatmap(cor.ortho)
+all.cor.fc
+
+cor.ortho <- deseq.res %>%
+  filter(gene_name %in% ortho.new$`Gene Symbol`) %>%
+  select(samples, gene_name, log2FoldChange) %>%
+  group_by(gene_name) %>% 
+  mutate(m = sum(!is.na(log2FoldChange))) %>%
+  ungroup() %>%
+  filter(m >= 15) %>%
+  select(-m) %>%
+  pivot_wider(names_from = gene_name, values_from = log2FoldChange) %>%
+  select(-samples) %>%
+  cor(., use = "pairwise.complete.obs", method = "spearman")
+
+# cor.ortho[upper.tri(cor.ortho)] <- NA
+
+only15.cor.fc <- pheatmap::pheatmap(cor.ortho)
+only15.cor.fc
+
+ggsave(all.cor.fc, filename = "../output/plots/plot.heatmap.cor.human.hypoxia.orthologs.all.genes.pdf", width = 30, height = 30)
+ggsave(all.cor.fc, filename = "../output/plots/plot.heatmap.cor.human.hypoxia.orthologs.gt15data.genes.pdf", width = 30, height = 30)
+
+```
 
 
 
