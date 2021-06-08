@@ -274,76 +274,32 @@ myBreaks <- c(seq(-10, 0, length.out=ceiling(paletteLength/2) + 1),
               seq(10/paletteLength, 10, length.out=floor(paletteLength/2)))
 
 
-category.colors <- colorRampPalette(grDevices::rainbow(30))
-cell.type.col <- category.colors(length(unique(my_gene_row$cell.type)))
-names(cell.type.col) <- unique(my_gene_row$cell.type)
-condition.col <- category.colors(length(unique(my_gene_row$condition)))
-names(condition.col) <- unique(my_gene_row$condition)
-duration.col <- category.colors(length(unique(my_gene_row$duration)))
-names(duration.col) <- unique(my_gene_row$duration)
+# category.colors <- colorRampPalette(grDevices::rainbow(30))
+# cell.type.col <- category.colors(length(unique(my_gene_row$cell.type)))
+# names(cell.type.col) <- unique(my_gene_row$cell.type)
+# condition.col <- category.colors(length(unique(my_gene_row$condition)))
+# names(condition.col) <- unique(my_gene_row$condition)
+# duration.col <- category.colors(length(unique(my_gene_row$duration)))
+# names(duration.col) <- unique(my_gene_row$duration)
 
-mycolors <- list(cell.type = cell.type.col, condition = condition.col, duration = duration.col)
+# mycolors <- list(cell.type = cell.type.col, condition = condition.col, duration = duration.col)
 
 d <- d %>% 
   column_to_rownames("samples") 
 # Plot the heatmap
-old.ortho.heatmap <- pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, annotation_row = my_gene_row, annotation_colors = mycolors)
-old.ortho.heatmap
+# ortho.heatmap <- pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, annotation_row = my_gene_row, annotation_colors = mycolors)
+callback = function(hc, ...){dendsort(hc)}
+ortho.heatmap <- pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, clustering_callback = callback)
 
-ggsave(old.ortho.heatmap, filename = "../output/plots/plot.heatmap.human.hypoxia.orthologs.old.pdf", width = 35, height = 10)
+ggsave(ortho.heatmap, filename = "../output/plots/plot.heatmap.human.hypoxia.orthologs.pdf", width = 35, height = 10)
 
 # pheatmap::pheatmap(d)
 
 ```
 
-
 ```{r fig.width=35, fig.height=10}
-ortho.new2 <- read_csv("../../new.orthologs", col_names = F)
-
-d <- deseq.res %>%
-  filter(gene_name %in% ortho.new2$X1) %>%
-  select(samples, gene_name, log2FoldChange) %>%
-  pivot_wider(names_from = gene_name, values_from = log2FoldChange) 
-
-x <- apply(d, 2, function(x)sum(is.na(x)))
-d <- d[-24,-which(x>11)] 
-
-my_gene_row <- d %>%
-  select(samples) %>%
-  separate(samples, into = c("GSE", "cell.type", "condition", "duration"), remove = F, sep = "_") %>%
-  select(-GSE) %>% 
-  column_to_rownames("samples") 
-  
-my_gene_row <- my_gene_row[-24,]
-
-paletteLength <- 50
-myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
-# length(breaks) == length(paletteLength) + 1
-# use floor and ceiling to deal with even/odd length pallettelengths
-myBreaks <- c(seq(-10, 0, length.out=ceiling(paletteLength/2) + 1), 
-              seq(10/paletteLength, 10, length.out=floor(paletteLength/2)))
-
-
-category.colors <- colorRampPalette(grDevices::rainbow(30))
-cell.type.col <- category.colors(length(unique(my_gene_row$cell.type)))
-names(cell.type.col) <- unique(my_gene_row$cell.type)
-condition.col <- category.colors(length(unique(my_gene_row$condition)))
-names(condition.col) <- unique(my_gene_row$condition)
-duration.col <- category.colors(length(unique(my_gene_row$duration)))
-names(duration.col) <- unique(my_gene_row$duration)
-
-mycolors <- list(cell.type = cell.type.col, condition = condition.col, duration = duration.col)
-
-d <- d %>% 
-  column_to_rownames("samples") 
-# Plot the heatmap
-ortho.heatmap <- pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, annotation_row = my_gene_row, annotation_colors = mycolors)
-ortho.heatmap
-
-ggsave(ortho.heatmap, filename = "../output/plots/plot.heatmap.human.hypoxia.orthologs.pdf", width = 35, height = 10)
-
-# pheatmap::pheatmap(d)
-dim(ortho.new2)
+callback = function(hc, ...){dendsort(hc)}
+pheatmap::pheatmap(d, color = myColor, breaks = myBreaks, annotation_row = my_gene_row, annotation_colors = mycolors, clustering_callback = callback)
 ```
 
 
