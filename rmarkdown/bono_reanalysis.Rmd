@@ -439,14 +439,91 @@ all.cor.fc
 ```
 
 
+```{r}
+a <- deseq.res %>%
+  group_by(gene_name) %>%
+  summarise(pos1.l2fc = sum(log2FoldChange > 1, na.rm = T),
+            pos0.l2fc = sum(log2FoldChange > 0, na.rm = T),
+            possig.l2fc = sum(log2FoldChange > 0 & padj < 0.05, na.rm = T),
+            med.l2fc = median(log2FoldChange, na.rm = T)) %>%
+  left_join(., ortho.new %>% dplyr::rename(gene_name = `Gene Symbol`) %>% mutate(ortho = TRUE), by = "gene_name")
+
+a
+```
+
+```{r}
+a %>% arrange(desc(possig.l2fc), desc(pos1.l2fc), desc(pos0.l2fc))
+
+a %>%
+  ggplot(., aes(pos.l2fc)) +
+  geom_bar() +
+  xlim(10, 33)
 
 
+```
 
 
+```{r}
+library("ggVennDiagram")
+```
+
+```{r}
+x <- list(all = a %>% filter(possig.l2fc >= 20) %>% pull(gene_name),
+          ortho = a %>% filter(ortho == T) %>% pull(gene_name))
+ggVennDiagram(x)
+```
+
+```{r}
+x <- list(all.up = a %>% filter(pos0.l2fc >= 15) %>% pull(gene_name),
+          all.sig.up = a %>% filter(possig.l2fc >= 15) %>% pull(gene_name),
+          ortho.up = a %>% filter(ortho == T, pos0.l2fc >= 15) %>% pull(gene_name),
+          ortho.sig.up = a %>% filter(ortho == T, possig.l2fc >= 15) %>% pull(gene_name))
+
+display_venn <- function(x, ...){
+  library(VennDiagram)
+  grid.newpage()
+  venn_object <- venn.diagram(x, filename = NULL, ...)
+  grid.draw(venn_object)
+}
+
+display_venn(
+        x,
+        # Circles
+        lwd = 2,
+        lty = 'blank',
+        fill = c("#999999", "#E69F00", "#56B4E9", "#009E73"),
+        # Numbers
+        cex = 1,
+        # Set names
+        cat.cex = 1.2,
+        cat.default.pos = "outer",
+        cat.fontface = "bold"
+)
+# dev.off()
+```
+
+```{r}
+a
+
+nrow(a)
+sum(a$pos0.l2fc >= 15)
+sum(a$pos0.l2fc >= 15 & !is.na(a$ortho))
+sum(!is.na(a$ortho))
+
+sum(a$possig.l2fc >= 15)
+sum(a$possig.l2fc >= 15 & !is.na(a$ortho))
+
+```
+
+```{r}
+prop.test(x = 109, n = 235, p = 11156/37268)
+prop.test(x = 16, n = 235, p = 135/37268)
+```
 
 
-
-
+```{r}
+a %>% filter(a$possig.l2fc >= 15 & is.na(a$ortho)) %>% select(gene_name) %>% write_csv("bono_signif_upreg_15data_not-ortho.csv")
+```
 
 
 

@@ -1,0 +1,217 @@
+---
+title: "Analysis of DEG (Leperchio 2021 method)"
+output: html_notebook
+---
+
+## Packages
+```{r}
+library(tidyverse)
+library(readxl)
+library(DESeq2)
+library(qvalue)
+```
+
+## Load read count data
+```{r}
+counts_data <- read_csv("../data/GeneCounts_HIF1_Dataset.csv")
+counts_data
+names(counts_data)[1] <- "Gene"
+```
+
+## DESeq2 comparisons
+```{r}
+## EGL9 vs WT
+deseq_count <- counts_data %>%
+  select("Gene", contains("N2") | starts_with("egl9_")) %>%
+  column_to_rownames("Gene") %>%
+  as.matrix() 
+
+cond <- factor(rep(c("N2", "egl9"), each = 4), levels = c("N2", "egl9"))
+
+dds <- DESeqDataSetFromMatrix(deseq_count, DataFrame(cond), ~ cond)
+dds <- DESeq(dds)
+
+n2_egl9_res <- results(dds)
+
+# moderated log2 fold changes
+n2_egl9_res_lfc <- lfcShrink(dds, coef=2, type="apeglm")
+
+########################################################################
+########################################################################
+
+## OR3350 vs WT
+deseq_count <- counts_data %>%
+  select("Gene", contains("N2") | starts_with("OR")) %>%
+  column_to_rownames("Gene") %>%
+  as.matrix() 
+
+cond <- factor(rep(c("N2", "OR3350"), each = 4), levels = c("N2", "OR3350"))
+
+dds <- DESeqDataSetFromMatrix(deseq_count, DataFrame(cond), ~ cond)
+dds <- DESeq(dds)
+
+n2_or3350_res <- results(dds)
+
+# moderated log2 fold changes
+n2_or3350_res_lfc <- lfcShrink(dds, coef=2, type="apeglm")
+
+########################################################################
+########################################################################
+
+## EGL9 vs EGL9_HIF1
+
+deseq_count <- counts_data %>%
+  select("Gene", starts_with("egl9")) %>%
+  column_to_rownames("Gene") %>%
+  as.matrix() 
+
+cond <- factor(rep(c("egl9", "egl9hif1"), each = 4), levels = c("egl9hif1", "egl9"))
+
+dds <- DESeqDataSetFromMatrix(deseq_count, DataFrame(cond), ~ cond)
+dds <- DESeq(dds)
+
+egl9hif1_egl9_res <- results(dds)
+
+# moderated log2 fold changes
+egl9hif1_egl9_res_lfc <- lfcShrink(dds, coef=2, type="apeglm")
+
+########################################################################
+########################################################################
+
+## OR3350 vs EGL9_HIF1
+deseq_count <- counts_data %>%
+  select("Gene", starts_with("OR") | starts_with("egl9hif1")) %>%
+  column_to_rownames("Gene") %>%
+  as.matrix() 
+
+cond <- factor(rep(c("OR3350", "egl9hif1"), each = 4), levels = c("egl9hif1", "OR3350"))
+
+dds <- DESeqDataSetFromMatrix(deseq_count, DataFrame(cond), ~ cond)
+dds <- DESeq(dds)
+
+egl9hif1_or3350_res <- results(dds)
+
+# moderated log2 fold changes
+egl9hif1_or3350_res_lfc <- lfcShrink(dds, coef=2, type="apeglm")
+
+```
+
+
+```{r}
+###
+###In the following we assume we already have the results objects from the differential analyses of two experiments. 
+###One object is res_exp1 and the other is res_exp2. We assume that we have well-calibrated p-value distributions, 
+###and the results objects are in the format provided by deseq2
+###
+
+res_exp1 <- n2_egl9_res_lfc
+res_exp2 <- n2_or3350_res_lfc
+
+##First, to visually get a feel for the overlap between the differential hits, look at the conditional p-value distributions
+hist(res_exp2$pvalue[which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)])], 
+     breaks = 40, freq = FALSE)
+hist(res_exp2$pvalue[-which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)])], 
+     breaks = 40, freq = FALSE)
+
+
+##now use the qvalue package to estimate pi_0 and label genes as shared differential at the desired fdr level
+# library(qvalue)
+
+qobj <- qvalue(p = res_exp2$pvalue[which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)])], 
+                                        fdr.level = 0.05, pi0.method = "bootstrap")
+
+#note: it is possible for the estimated pi_0 to be discordant (bigger or smaller) with what we intuitively expect 
+#based on the p-val distributions. In this case, look at the pi_0 values produced for different values of the lambda parameter
+
+shared_differential_genes <- res_exp2[which(rownames(res_exp2) %in% 
+                                             rownames(res_exp1)[which(res_exp1$padj < 0.05)])[
+                                                          which(qobj$significant == TRUE)], ]
+
+##get a p-value for the overlap via permutations
+null_distribution <- replicate(10000, {
+  pi0_random <- pi0est(p = sample(res_exp2$pvalue, 
+                                  length(which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)]))), 
+                       pi0.method = "bootstrap")$pi0
+  1- pi0_random
+})
+
+(shared_differential_genes_n2 <- shared_differential_genes)
+hist(null_distribution)
+```
+
+```{r}
+###
+###In the following we assume we already have the results objects from the differential analyses of two experiments. 
+###One object is res_exp1 and the other is res_exp2. We assume that we have well-calibrated p-value distributions, 
+###and the results objects are in the format provided by deseq2
+###
+
+res_exp1 <- egl9hif1_egl9_res_lfc
+res_exp2 <- egl9hif1_or3350_res_lfc
+
+##First, to visually get a feel for the overlap between the differential hits, look at the conditional p-value distributions
+hist(res_exp2$pvalue[which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)])], 
+     breaks = 40, freq = FALSE)
+hist(res_exp2$pvalue[-which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)])], 
+     breaks = 40, freq = FALSE)
+
+
+##now use the qvalue package to estimate pi_0 and label genes as shared differential at the desired fdr level
+# library(qvalue)
+
+qobj <- qvalue(p = res_exp2$pvalue[which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)])], 
+                                        fdr.level = 0.05, pi0.method = "bootstrap")
+
+#note: it is possible for the estimated pi_0 to be discordant (bigger or smaller) with what we intuitively expect 
+#based on the p-val distributions. In this case, look at the pi_0 values produced for different values of the lambda parameter
+
+shared_differential_genes <- res_exp2[which(rownames(res_exp2) %in% 
+                                             rownames(res_exp1)[which(res_exp1$padj < 0.05)])[
+                                                          which(qobj$significant == TRUE)], ]
+
+##get a p-value for the overlap via permutations
+null_distribution <- replicate(10000, {
+  pi0_random <- pi0est(p = sample(res_exp2$pvalue, 
+                                  length(which(rownames(res_exp2) %in% rownames(res_exp1)[which(res_exp1$padj < 0.05)]))), 
+                       pi0.method = "bootstrap")$pi0
+  1- pi0_random
+})
+
+(shared_differential_genes_egl9hif1 <- shared_differential_genes)
+hist(null_distribution)
+```
+
+```{r}
+# shared_differential_genes_egl9hif1
+
+egl9hif1_egl9_res_lfc %>%
+  as_tibble(rownames = "Gene") %>%
+  filter(padj <= 0.05)
+
+egl9hif1_or3350_res_lfc %>%
+  as_tibble(rownames = "Gene") %>%
+  filter(padj <= 0.05)
+
+n2_egl9_res_lfc %>%
+  as_tibble(rownames = "Gene") %>%
+  filter(padj <= 0.05)
+
+n2_or3350_res_lfc %>%
+  as_tibble(rownames = "Gene") %>%
+  filter(padj <= 0.05)
+```
+```{r}
+shared_differential_genes_n2 %>%
+  as_tibble(rownames = "Gene") %>% 
+  write_csv(file = "../data/shared_differential_genes_n2.csv")
+
+shared_differential_genes_egl9hif1 %>%
+  as_tibble(rownames = "Gene") %>% 
+  write_csv(file = "../data/shared_differential_genes_egl9hif1.csv")
+
+```
+
+```{r}
+qobj
+```
+
