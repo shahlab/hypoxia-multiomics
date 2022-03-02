@@ -41,7 +41,8 @@ egl9hif1_or3350_edger <- read_csv("../data/edgeR/OR3350_vs_egl9hif1_WS245_Apr_28
 
 
 ```{r}
-###
+### This code chunk was provided by Drs. Leandros Boukas and Kasper Hansen as part of the analyses in Luperchio et al., eLife 2021
+
 ###In the following we assume we already have the results objects from the differential analyses of two experiments. 
 ###One object is res_exp1 and the other is res_exp2. We assume that we have well-calibrated p-value distributions, 
 ###and the results objects are in the format provided by edgeR
@@ -83,7 +84,8 @@ shared_differential_genes <- res_exp2[which(rownames(res_exp2) %in%
 ```
 
 ```{r}
-###
+### This code chunk was provided by Drs. Leandros Boukas and Kasper Hansen as part of the analyses in Luperchio et al., eLife 2021
+
 ###In the following we assume we already have the results objects from the differential analyses of two experiments. 
 ###One object is res_exp1 and the other is res_exp2. We assume that we have well-calibrated p-value distributions, 
 ###and the results objects are in the format provided by edgeR
@@ -152,11 +154,11 @@ shared_differential_genes_egl9hif1
 
 shared_differential_genes_n2 %>%
   as_tibble(rownames = "Gene") %>% 
-  write_csv(file = "../output/shared_differential_genes_edgeR_n2.csv")
+  write_csv(file = "../output/tables/shared_differential_genes_edgeR_n2.csv")
 
 shared_differential_genes_egl9hif1 %>%
   as_tibble(rownames = "Gene") %>% 
-  write_csv(file = "../output/shared_differential_genes_edgeR_egl9hif1.csv")
+  write_csv(file = "../output/tables/shared_differential_genes_edgeR_egl9hif1.csv")
 
 ```
 
