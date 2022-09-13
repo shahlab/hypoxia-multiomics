@@ -87,7 +87,7 @@ over1k <- findOverlaps(hif1.mid.gr, modTF.1k.gr) %>%
 ```
 
 ```{r}
-### Prepare files for Mehul/Chris
+### Prepare output files
 
 outExp <- left_join(over400, over1k, by = c("chr", "start", "end"), 
                     suffix = c(".400", ".1k")) %>%
@@ -96,6 +96,21 @@ outExp <- left_join(over400, over1k, by = c("chr", "start", "end"),
 write.csv(outExp, "../output/tables/HIF-1_ModEncode_overlap.csv")
 ```
 
+```
+########## Find overlap with FOR LOABETA PEAKS
+LOAbeta.peaks <- read_xlsx("../data/LuperchioBETA_Peaks.xlsx")
+LOAbeta.gr <- GRanges(seqnames = LOAbeta.peaks$chrom, ranges = IRanges(start = LOAbeta.peaks$pStart, end = LOAbeta.peaks$pEnd), strand = "+")
+tmp.gr <- GRanges(seqnames = outExp$chr, ranges = IRanges(start = outExp$start, end = outExp$end), strand = "+")
+
+
+# Find which peaks in the HIF-1 binding data are BETA peaks
+overlaps.with.mod.data <- findOverlaps(LOAbeta.gr, tmp.gr)
+
+
+# Get other TF binding data for BETA peaks
+LOAbeta.data <- outExp[subjectHits(overlaps.with.mod.data), ]
+write_csv(LOAbeta, file = "../output/tables/LuperchioBETA_ModEncode_Overlap_NEW.csv")
+```
 
 ```{r fig.width=15,fig.height = 5}
 beta.peaks <- read_xlsx("../data/Peak coordinates for 3 conditions.xlsx", sheet = "BETA Peaks")
@@ -194,6 +209,19 @@ TF.enrich.perHIF <- left_join(TF.enrich.perHIF, boot) %>%
          'Significantly enriched' = ifelse(enrich < low | enrich > high, "TRUE", "FALSE"))
 
 write.csv(TF.enrich.perHIF, "../output/tables/HIF-1_ModEncode_overlap.enrich.csv")
+```
+
+
+### Bootstrap p-value
+```{r}
+calc.pvalue <- function(x, val){
+  if(val > median(x))
+    pval <- (1+sum(val<x))/(length(x)+1)
+  else
+    pval <- (1+sum(val>x))/(length(x)+1)
+}
+TF.enrich.perHIF.boot$p.value <- sapply(tf, function(x) calc.pvalue(x = bg.enrich[x,], val = TF.enrich.perHIF.boot$enrich[TF.enrich.perHIF.boot$TF==x]))
+TF.enrich.perHIF.boot$FDR <- p.adjust(TF.enrich.perHIF.boot$p.value, method = "BH")
 ```
 
 ```{r fig.width=15,fig.height = 5}
